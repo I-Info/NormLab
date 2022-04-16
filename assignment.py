@@ -1,4 +1,4 @@
-import os
+import csv
 import zipfile
 from typing import Union, List, Callable, Tuple
 import rarfile
@@ -170,7 +170,7 @@ class AssignmentManager:
         """作业相似度检查
         """
         print("[Info]Assignments check..")
-        similar_result = []  # 结果集
+        similar_result: List[Tuple[int, List[int]]] = []  # 结果集
         # 遍历两两检查
         for index_l in range(len(self.__assignments) - 1):
             left = self.__assignments[index_l]
@@ -227,7 +227,41 @@ class AssignmentManager:
                             tmp_result.append((flag, [index_l, index_r]))
 
             similar_result.extend(tmp_result)
-        print(similar_result)
+
+        # 导出相似度分析报告
+        if len(similar_result) > 0:
+            print("[Info]Exporting similar report..")
+            self.__export_check_report(similar_result)
+            print("[Info]Export finished.")
+
+    def __export_check_report(self, result: List[Tuple[int, List[int]]]):
+        with open(self.__lab_name + "/Similar-Report.csv", mode="w", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            max_count = 0  # 确定表头大小
+            rows: List[str] = []
+            count = 1
+            for f, it in result:
+                if len(it) > max_count:
+                    max_count = len(it)
+                aspects = convert_flag(f)
+                rows += [[f"Group {count}", aspects] + [
+                    f"{self.__assignments[i].student.num}-{self.__assignments[i].student.name}" for i in it]]
+            header = ["", "Similar Aspects"] + [f"Student {i}" for i in range(1, max_count + 1)]  # 创建表头
+            writer.writerow(header)
+            writer.writerows(rows)
+
+
+def convert_flag(flag: int) -> str:
+    """转换flag成可读形式"""
+    kv_map = ["similar size, ", "similar structure, ", "similar report name"]
+    result = ""
+    index = 0
+    while flag > 0:
+        if flag % 2 == 1:
+            result += kv_map[index]
+        index += 1
+        flag >>= 1
+    return result
 
 
 def check_files(left: List[str], right: List[str], is_junk: Callable[[str], bool] = None, threshold: int = 0.8) -> int:
