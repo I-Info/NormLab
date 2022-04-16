@@ -1,4 +1,5 @@
 import difflib
+
 from assignment import AssignmentPackage
 from student import StudentInfoDict
 

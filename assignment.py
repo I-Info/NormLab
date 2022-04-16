@@ -1,7 +1,9 @@
 import zipfile
+from typing import Union
 import rarfile
+
 from student import StudentInfoDict, Student
-from fileUtil import mkdir, zip_extract_file, get_output_path, separate_path_filename
+from fileUtil import extract_file, get_output_path, separate_path_filename
 
 
 class AssignmentCheck:
@@ -36,8 +38,10 @@ class AssignmentCheck:
         return self.check_file(file_path) and self.check_path(file_path)
 
 
-# 作业类
 class Assignment:
+    """作业类
+    """
+
     def __init__(self, lab_num: str, student: Student, check: AssignmentCheck):
         self.__student: Student = student
         self.__name: str = f"{lab_num}-{student}"  # 学生作业的最终名称
@@ -67,13 +71,22 @@ class Assignment:
                     if filename[-len(original_filename) - 4:-4] == original_filename:
                         continue
 
-                    self.__process_file_zip(assignment_zip, file, self.__get_src__path(), filename)
+                    self.__process_file(assignment_zip, file, self.__get_src__path())
 
-    def __process_file_zip(self, archive: zipfile.PyZipFile, file: zipfile.ZipInfo, path: str, filename: str):
+    def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: str):
         """ 处理压缩包中文件
+        :param file: 压缩包文件句柄
         :param path: 指定输出路径(doc文件除外)
-        :param filename: 文件名(不包含路径)
         """
+
+        archive_name = archive.filename[:-4]  # 压缩包名
+        filename = file.filename
+        output_path = path + "/" + get_output_path(filename, archive_name)  # 获取处理后的路径
+
+        if file.is_dir() or not self.__check.double_check(output_path):  # 使用特定规则忽略文件夹和文件
+            return
+
+        pure_path, filename = separate_path_filename(output_path)  # 获取纯路径
 
         if filename[-4:] == ".doc" or filename[-5:] == ".docx":
             # 将后缀为类.doc的文件作为实验报告，每个学生有且仅有一份有效的实验报告，因此仅保留大小最大的文档。
@@ -82,44 +95,42 @@ class Assignment:
                 self.__report_size = file.file_size
                 self.__report_original_filename = file.filename
                 # 将实验报告移动提取到根目录
-                zip_extract_file(archive, file, self.__base_path, f"{self.__name}{filename[-5:]}")
+                extract_file(archive, file, self.__base_path, f"{self.__name}{filename[-5:]}")
 
         else:
             # 处理zip文件
             if filename[-4:] == ".zip":
                 with zipfile.PyZipFile(archive.open(file, 'r'), 'r') as zip_file:
-                    self.__process_zip(zip_file, path)
+                    self.__process_zip(zip_file, pure_path)
 
             # 处理rar文件
             elif filename[-4:] == ".rar":
                 with rarfile.RarFile(archive.open(file, 'r'), 'r') as rar_file:
-                    self.__process_rar(rar_file, path)
+                    self.__process_rar(rar_file, pure_path)
 
             # 其他文件解压输出到学生源代码代码目录
             else:
-                zip_extract_file(archive, file, path, filename)
+                extract_file(archive, file, pure_path, filename)
 
     def __process_zip(self, archive: zipfile.PyZipFile, path: str):
         """ 处理zip文件
         """
-        archive_name = archive.filename[:-4]  # 压缩包名
-        # 遍历文件
+        # 遍历zip中文件
         for file in archive.filelist:
-            filename = file.filename
-            output_path = path + "/" + get_output_path(filename, archive_name)  # 获取处理后的路径
-            if not file.is_dir() and self.__check.double_check(output_path):  # 使用特定规则忽略文件夹和文件
-                pure_path, filename = separate_path_filename(output_path)  # 获取纯路径
-                self.__process_file_zip(archive, file, pure_path, filename)
+            self.__process_file(archive, file, path)
 
     def __process_rar(self, archive: rarfile.RarFile, path: str):
         """ 处理rar文件
         """
-        # TODO
-        pass
+        # 遍历rar中文件
+        for file in archive.infolist():
+            self.__process_file(archive, file, path)
 
 
-# 作业包类
 class AssignmentPackage:
+    """作业包类
+    """
+
     def __init__(self, path: str):
         self.__lab_name: str = ""
         self.__file_path: str = path
@@ -133,7 +144,6 @@ class AssignmentPackage:
         with zipfile.ZipFile(file=self.__file_path, mode="r") as package:
             print("[Info]Processing package..")
             self.__lab_name = package.filename[:-4]  # 输出根目录名
-            mkdir(self.__lab_name)  # 创建根目录
             # 遍历所有学生作业
             for file in package.filelist:
                 stu_num = file.filename[:13]  # 读取学生学号

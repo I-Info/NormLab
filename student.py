@@ -2,6 +2,9 @@ import csv
 
 
 class Student:
+    """学生类
+    """
+
     def __init__(self, num: str = "", name: str = ""):
         self.num = num
         self.name = name
@@ -10,8 +13,10 @@ class Student:
         return f"{self.num}-{self.name}"
 
 
-# 学生信息字典
 class StudentInfoDict:
+    """学生信息字典
+    """
+
     def __init__(self, input_path: str):
         # 从CSV文件中读取学生信息
         self.__data: dict = {}
@@ -21,6 +26,7 @@ class StudentInfoDict:
             for row in reader:
                 self.__data[row[0]] = row[2]
 
-    # 通过学号查询姓名简称，找不到则抛出异常
     def __getitem__(self, item) -> str:
+        """通过学号查询姓名简称，找不到则抛出异常
+        """
         return self.__data[item]
