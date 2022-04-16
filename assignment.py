@@ -1,7 +1,8 @@
 import os
 import zipfile
-from typing import Union, List
+from typing import Union, List, Callable
 import rarfile
+import difflib
 
 from student import StudentInfoDict, Student
 from fileUtil import extract_file, get_output_path, separate_path_filename
@@ -169,9 +170,70 @@ class AssignmentManager:
         """作业检查
         """
         print("[Info]Assignments check..")
-        # 遍历检查
-        for assignment in self.__assignments:
-            print(assignment.src_size, assignment.files)
-            for other in self.__assignments:
-                if other == assignment:
-                    continue
+        similar_result = []  # 结果集
+        # 遍历两两检查
+        for index_l in range(len(self.__assignments) - 1):
+            left = self.__assignments[index_l]
+            l_src_size, l_files = left.src_size, left.files
+            for index_r in range(index_l + 1, len(self.__assignments)):
+                flag: int = 0b000  # 相似位标记
+                right = self.__assignments[index_r]
+                r_src_size, r_files = right.src_size, right.files
+                if l_src_size != 0:
+                    # 相似大小判断
+                    if abs(l_src_size - r_src_size) / l_src_size < 0.10:
+                        print("[Warn]Similar upload file size: ", l_src_size, r_src_size)
+                        flag |= 0b001  # 记录
+
+                    # 相似文件结构判断
+                    if r_src_size != 0:
+                        if len(l_files) > len(r_files):
+                            similar_prop = check_files(l_files, r_files) / len(l_files)
+                            # print(f"Similar count: {similar_count}/{len(l_files)}")
+                        else:
+                            similar_prop = check_files(r_files, l_files) / len(r_files)
+                            # print(f"Similar count: {similar_count}/{len(r_files)}")
+                        if similar_prop > 0.6:
+                            # 超过一半的文件相似
+                            flag |= 0b010
+
+                    # 实验报告文件相似度分析
+                    # 去除报告中学生姓名学号
+                    l_report_name = left.report.original_filename \
+                        .lower() \
+                        .replace(left.student.name.lower(), '') \
+                        .replace(left.student.num.lower(), '')
+                    r_report_name = right.report.original_filename \
+                        .lower() \
+                        .replace(right.student.num.lower(), '') \
+                        .replace(right.student.name.lower(), '')
+                    s = difflib.SequenceMatcher(None, l_report_name, r_report_name)
+                    report_ratio = s.ratio()
+                    if report_ratio > 0.8:
+                        print(f"Report similar: {l_report_name}, {r_report_name}")
+                        flag |= 0b100
+
+                    # 存在雷同情况
+                    if flag > 0:
+                        similar_result.append(())
+
+
+def check_files(left: List[str], right: List[str], is_junk: Callable[[str], bool] = None, threshold: int = 0.8) -> int:
+    """检查文件结构是否相似(包含文件名)"""
+    similar_count = 0
+    result = []
+    for i in range(len(left)):
+        max_ratio = 0
+        max_r_index: int = 0
+        for j in range(len(right)):
+            s = difflib.SequenceMatcher(is_junk, left[i], right[j])
+            ratio = s.ratio()
+            if ratio > max_ratio:
+                max_ratio = ratio
+                max_r_index = j
+        if max_ratio > threshold:
+            result.append((i, max_r_index, max_ratio))
+            # print(f"L: {left[i]} R: {right[max_r_index]} ratio: {max_ratio}")
+            similar_count += 1
+
+    return similar_count
