@@ -1,6 +1,6 @@
 import os
 import zipfile
-from typing import Union, List, Callable
+from typing import Union, List, Callable, Tuple
 import rarfile
 import difflib
 
@@ -167,7 +167,7 @@ class AssignmentManager:
                 self.__assignments.append(assignment)
 
     def check(self):
-        """作业检查
+        """作业相似度检查
         """
         print("[Info]Assignments check..")
         similar_result = []  # 结果集
@@ -175,6 +175,7 @@ class AssignmentManager:
         for index_l in range(len(self.__assignments) - 1):
             left = self.__assignments[index_l]
             l_src_size, l_files = left.src_size, left.files
+            tmp_result: List[Tuple[int, List[int]]] = []
             for index_r in range(index_l + 1, len(self.__assignments)):
                 flag: int = 0b000  # 相似位标记
                 right = self.__assignments[index_r]
@@ -182,7 +183,7 @@ class AssignmentManager:
                 if l_src_size != 0:
                     # 相似大小判断
                     if abs(l_src_size - r_src_size) / l_src_size < 0.10:
-                        print("[Warn]Similar upload file size: ", l_src_size, r_src_size)
+                        print("[Warn]Similar upload file size")
                         flag |= 0b001  # 记录
 
                     # 相似文件结构判断
@@ -195,6 +196,7 @@ class AssignmentManager:
                             # print(f"Similar count: {similar_count}/{len(r_files)}")
                         if similar_prop > 0.6:
                             # 超过一半的文件相似
+                            print("[Warn]Similar file structure")
                             flag |= 0b010
 
                     # 实验报告文件相似度分析
@@ -210,12 +212,22 @@ class AssignmentManager:
                     s = difflib.SequenceMatcher(None, l_report_name, r_report_name)
                     report_ratio = s.ratio()
                     if report_ratio > 0.8:
-                        print(f"Report similar: {l_report_name}, {r_report_name}")
+                        print(f"[Warn]Similar report filename")
                         flag |= 0b100
 
-                    # 存在雷同情况
+                    # 存在雷同，则根据不同雷同情况记录
                     if flag > 0:
-                        similar_result.append(())
+                        stored = False
+                        for f, indices in tmp_result:
+                            if f == flag:
+                                indices.append(index_r)
+                                stored = True
+                                break
+                        if not stored:
+                            tmp_result.append((flag, [index_l, index_r]))
+
+            similar_result.extend(tmp_result)
+        print(similar_result)
 
 
 def check_files(left: List[str], right: List[str], is_junk: Callable[[str], bool] = None, threshold: int = 0.8) -> int:
