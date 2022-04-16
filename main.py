@@ -1,6 +1,6 @@
 import difflib
 
-from assignment import AssignmentPackage
+from assignment import AssignmentManager
 from student import StudentInfoDict
 
 
@@ -13,5 +13,6 @@ def test_lib():
 
 if __name__ == '__main__':
     info_dict = StudentInfoDict("student-list.csv")
-    package = AssignmentPackage("Lab03-JUnit for Unit Test.zip")
-    package.process_package(info_dict)
+    manager = AssignmentManager()
+    manager.process_package("Lab03-JUnit for Unit Test.zip", info_dict)
+    manager.check()

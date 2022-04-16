@@ -15,6 +15,7 @@ def extract_file(archive: Union[rarfile.RarFile, zipfile.ZipFile], name: any, ou
 
 def get_output_path(path: str, key: str) -> str:
     """获取去除重复关键词后的路径
+    用于实现递归去除重复路径的功能
     """
     index = path.find(f"{key}/")
     if index == -1:
@@ -31,4 +32,4 @@ def separate_path_filename(path: str) -> (str, str):
     while not index == -1:
         current = index
         index = path.find("/", current + 1)
-    return path[:current + 1], path[current + 1:]
+    return path[:current], path[current + 1:]
