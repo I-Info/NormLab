@@ -44,24 +44,19 @@ class Assignment:
     """作业类
     """
 
-    def __init__(self, lab_num: str, student: Student, check: AssignmentCheck):
+    def __init__(self, lab_num: str, student: Student, base_path: str, check: AssignmentCheck):
         self.student: Student = student
         self.report: Report = Report()
         self.files: List[str] = []
         self.src_size: int = 0
         self.__name: str = f"{lab_num}-{student}"  # 学生作业的最终名称
-        self.__base_path: str = ""  # 根目录
+        self.__base_path: str = base_path  # 根目录
+        self.src_path: str = f"{self.__base_path}/{self.__name}"  # 源代码目录
         self.__check: AssignmentCheck = check
 
-    def __get_src__path(self) -> str:
-        """获取学生源代码目录
-        """
-        return f"{self.__base_path}/{self.__name}"
-
-    def process_assignment(self, base_path: str, package: zipfile.ZipFile, file_info: zipfile.ZipInfo):
+    def process_assignment(self, package: zipfile.ZipFile, file_info: zipfile.ZipInfo):
         """作业标准化处理入口
         """
-        self.__base_path = base_path
         # 从包中处理单个作业
         with package.open(file_info, mode='r') as package_io:
             with zipfile.PyZipFile(package_io, 'r') as assignment_zip:
@@ -74,16 +69,7 @@ class Assignment:
                     if filename[-len(original_filename) - 4:-4] == original_filename:
                         continue
 
-                    self.__process_file(assignment_zip, file, self.__get_src__path())
-
-        self.__calc_size()
-
-    def __calc_size(self):
-        """计算提交源码的总大小
-        """
-        src_path = self.__get_src__path()
-        if os.path.exists(src_path):
-            self.src_size = os.path.getsize(src_path)
+                    self.__process_file(assignment_zip, file, self.src_path)
 
     def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: str):
         """处理压缩包中文件
@@ -119,7 +105,8 @@ class Assignment:
 
             # 其他文件解压输出到学生源代码代码目录
             else:
-                self.files.append(pure_path)
+                self.files.append(pure_path[len(self.src_path):] + "/" + filename)  # 将文件路径信息添加到记录中
+                self.src_size += file.file_size  # 累加文件大小
                 extract_file(archive, file, pure_path, filename)
 
     def __process_zip(self, archive: zipfile.PyZipFile, path: str):
@@ -157,7 +144,7 @@ class AssignmentManager:
         check = AssignmentCheck()
         with zipfile.ZipFile(file=package_path, mode="r") as package:
             print("[Info]Processing package..")
-            self.__lab_name = package.filename[:-4]  # 输出根目录名
+            self.__lab_name = package.filename[:-4]  # 实验名称(根目录名)
             # 遍历所有学生作业
             for file in package.filelist:
                 stu_num = file.filename[:13]  # 读取学生学号
@@ -174,8 +161,8 @@ class AssignmentManager:
                 print("[Info]Processing Assignment:", student)
 
                 # 处理单个学生作业
-                assignment = Assignment(self.__get_lab_num(), student, check)
-                assignment.process_assignment(self.__lab_name, package, file)
+                assignment = Assignment(self.__get_lab_num(), student, self.__lab_name, check)
+                assignment.process_assignment(package, file)
                 self.__assignments.append(assignment)
 
     def check(self):
@@ -184,7 +171,7 @@ class AssignmentManager:
         print("[Info]Assignments check..")
         # 遍历检查
         for assignment in self.__assignments:
-            print(assignment.files)
+            print(assignment.src_size, assignment.files)
             for other in self.__assignments:
                 if other == assignment:
                     continue
