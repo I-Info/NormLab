@@ -178,13 +178,10 @@ class AssignmentManager:
         # 遍历两两检查
         for index_l in range(len(self.__assignments) - 1):
             left = self.__assignments[index_l]
-            # l_src_size, l_files = left.src_size, left.files
             l_src = left.source
-            tmp_result: List[Tuple[int, List[int]]] = []
             for index_r in range(index_l + 1, len(self.__assignments)):
                 flag: int = 0b000  # 相似位标记
                 right = self.__assignments[index_r]
-                # r_src_size, r_files = right.src_size, right.files
                 r_src = right.source
                 src_analyzer = SourceAnalyzer(l_src, r_src)
                 if src_analyzer.similar_size():
@@ -278,6 +275,7 @@ def remove_single_src_dir(p: Path):
             remove_single_src_dir(sub)
     if exist_src and count == 1:
         import shutil
-        for sub in (p / "src").iterdir():
+        src = (p / "src")
+        for sub in src.iterdir():
             shutil.move(sub, p)
-        (p / "src").rmdir()
+        src.rmdir()
