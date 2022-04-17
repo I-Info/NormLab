@@ -1,6 +1,6 @@
 import csv
 import zipfile
-from typing import Union, List, Callable, Tuple
+from typing import Union, List, Tuple
 import rarfile
 import difflib
 from pathlib import Path
@@ -8,6 +8,7 @@ from pathlib import Path
 from student import StudentInfoDict, Student
 from fileUtil import extract_file, get_output_path, separate_path_filename
 from report import Report
+from source import Source, SourceAnalyzer
 
 
 class AssignmentCheck:
@@ -49,12 +50,11 @@ class Assignment:
     def __init__(self, lab_num: str, student: Student, base_path: str, check: AssignmentCheck):
         self.student: Student = student
         self.report: Report = Report()
-        self.files: List[str] = []
-        self.src_size: int = 0
         self.__name: str = f"{lab_num}-{student}"  # 学生作业的最终名称
         self.__base_path: str = base_path  # 根目录
         self.src_path: str = f"{self.__base_path}/{self.__name}"  # 源代码目录
         self.__check: AssignmentCheck = check
+        self.source: Source = Source()
 
     def process_assignment(self, package: zipfile.ZipFile, file_info: zipfile.ZipInfo):
         """作业标准化处理入口
@@ -110,8 +110,8 @@ class Assignment:
 
             # 其他文件解压输出到学生源代码代码目录
             else:
-                self.files.append(pure_path[len(self.src_path):] + "/" + filename)  # 将文件路径信息添加到记录中
-                self.src_size += file.file_size  # 累加文件大小
+                # 将文件路径信息添加到记录中，累加大小
+                self.source.append(pure_path[len(self.src_path):] + "/" + filename, file.file_size)
                 extract_file(archive, file, pure_path, filename)
 
     def __process_zip(self, archive: zipfile.PyZipFile, path: str):
@@ -178,57 +178,56 @@ class AssignmentManager:
         # 遍历两两检查
         for index_l in range(len(self.__assignments) - 1):
             left = self.__assignments[index_l]
-            l_src_size, l_files = left.src_size, left.files
+            # l_src_size, l_files = left.src_size, left.files
+            l_src = left.source
             tmp_result: List[Tuple[int, List[int]]] = []
             for index_r in range(index_l + 1, len(self.__assignments)):
                 flag: int = 0b000  # 相似位标记
                 right = self.__assignments[index_r]
-                r_src_size, r_files = right.src_size, right.files
-                if l_src_size != 0:
-                    # 相似大小判断
-                    if abs(l_src_size - r_src_size) / l_src_size < 0.10:
-                        print("[Warn]Similar upload file size")
-                        flag |= 0b001  # 记录
+                # r_src_size, r_files = right.src_size, right.files
+                r_src = right.source
+                src_analyzer = SourceAnalyzer(l_src, r_src)
+                if src_analyzer.similar_size():
+                    print("[Warn]Similar upload file size")
+                    flag |= 0b001  # 记录
 
-                    # 相似文件结构判断
-                    if r_src_size != 0:
-                        if len(l_files) > len(r_files):
-                            similar_prop = check_files(l_files, r_files) / len(l_files)
-                            # print(f"Similar count: {similar_count}/{len(l_files)}")
-                        else:
-                            similar_prop = check_files(r_files, l_files) / len(r_files)
-                            # print(f"Similar count: {similar_count}/{len(r_files)}")
-                        if similar_prop > 0.6:
-                            # 超过一半的文件相似
-                            print("[Warn]Similar file structure")
-                            flag |= 0b010
+                if src_analyzer.similar_structure():
+                    print("[Warn]Similar file structure")
+                    flag |= 0b010
 
-                    # 实验报告文件相似度分析
-                    # 去除报告中学生姓名学号
-                    l_report_name = left.report.original_filename \
-                        .lower() \
-                        .replace(left.student.name.lower(), '') \
-                        .replace(left.student.num.lower(), '')
-                    r_report_name = right.report.original_filename \
-                        .lower() \
-                        .replace(right.student.num.lower(), '') \
-                        .replace(right.student.name.lower(), '')
-                    s = difflib.SequenceMatcher(None, l_report_name, r_report_name)
-                    report_ratio = s.ratio()
-                    if report_ratio > 0.8:
-                        print(f"[Warn]Similar report filename")
-                        flag |= 0b100
+                # 实验报告文件相似度分析
+                # 去除报告中学生姓名学号
+                l_report_name = left.report.original_filename \
+                    .lower() \
+                    .replace(left.student.name.lower(), '') \
+                    .replace(left.student.num.lower(), '')
+                r_report_name = right.report.original_filename \
+                    .lower() \
+                    .replace(right.student.num.lower(), '') \
+                    .replace(right.student.name.lower(), '')
+                s = difflib.SequenceMatcher(None, l_report_name, r_report_name)
+                report_ratio = s.ratio()
+                if report_ratio > 0.8:
+                    print(f"[Warn]Similar report filename")
+                    flag |= 0b100
 
-                    # 存在雷同，则根据不同雷同情况记录
-                    if flag > 0:
-                        for f, indices in tmp_result:
-                            if f == flag:
+                # 存在雷同，则根据不同雷同情况记录
+                if flag > 0:
+                    for f, indices in similar_result:
+                        if f == flag:
+                            find_l, find_r = False, False
+                            for it in indices:
+                                if it == index_l:
+                                    find_l = True
+                                elif it == index_r:
+                                    find_r = True
+                            if find_l and not find_r:
                                 indices.append(index_r)
                                 break
-                        else:
-                            tmp_result.append((flag, [index_l, index_r]))
-
-            similar_result.extend(tmp_result)
+                            elif find_l and find_r:
+                                break
+                    else:
+                        similar_result.append((flag, [index_l, index_r]))
 
         # 导出相似度分析报告
         if len(similar_result) > 0:
@@ -265,27 +264,6 @@ def convert_flag(flag: int) -> str:
         index += 1
         flag >>= 1
     return result
-
-
-def check_files(left: List[str], right: List[str], is_junk: Callable[[str], bool] = None, threshold: int = 0.8) -> int:
-    """检查文件结构是否相似(包含文件名)"""
-    similar_count = 0
-    result = []
-    for i in range(len(left)):
-        max_ratio = 0
-        max_r_index: int = 0
-        for j in range(len(right)):
-            s = difflib.SequenceMatcher(is_junk, left[i], right[j])
-            ratio = s.ratio()
-            if ratio > max_ratio:
-                max_ratio = ratio
-                max_r_index = j
-        if max_ratio > threshold:
-            result.append((i, max_r_index, max_ratio))
-            # print(f"L: {left[i]} R: {right[max_r_index]} ratio: {max_ratio}")
-            similar_count += 1
-
-    return similar_count
 
 
 def remove_single_src_dir(p: Path):
