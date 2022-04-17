@@ -1,1 +1,2 @@
 rarfile~=4.0
+pytest~=7.1.1

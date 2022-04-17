@@ -12,6 +12,8 @@ class Report:
 
         :return: 如果修改了则返回Ture
         """
+        if self.file_size != -1:
+            print("[Warn]Multiple lab report file detected, reserve bigger one.")
         if file_size > self.file_size:
             self.file_size = file_size
             self.original_filename = filename

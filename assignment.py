@@ -3,6 +3,7 @@ import zipfile
 from typing import Union, List, Callable, Tuple
 import rarfile
 import difflib
+from pathlib import Path
 
 from student import StudentInfoDict, Student
 from fileUtil import extract_file, get_output_path, separate_path_filename
@@ -71,6 +72,9 @@ class Assignment:
                         continue
 
                     self.__process_file(assignment_zip, file, self.src_path)
+        path = Path(self.src_path)
+        if path.exists():
+            remove_single_src_dir(Path(self.src_path))
 
     def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: str):
         """处理压缩包中文件
@@ -217,13 +221,11 @@ class AssignmentManager:
 
                     # 存在雷同，则根据不同雷同情况记录
                     if flag > 0:
-                        stored = False
                         for f, indices in tmp_result:
                             if f == flag:
                                 indices.append(index_r)
-                                stored = True
                                 break
-                        if not stored:
+                        else:
                             tmp_result.append((flag, [index_l, index_r]))
 
             similar_result.extend(tmp_result)
@@ -246,6 +248,7 @@ class AssignmentManager:
                 aspects = convert_flag(f)
                 rows += [[f"Group {count}", aspects] + [
                     f"{self.__assignments[i].student.num}-{self.__assignments[i].student.name}" for i in it]]
+                count += 1
             header = ["", "Similar Aspects"] + [f"Student {i}" for i in range(1, max_count + 1)]  # 创建表头
             writer.writerow(header)
             writer.writerows(rows)
@@ -283,3 +286,20 @@ def check_files(left: List[str], right: List[str], is_junk: Callable[[str], bool
             similar_count += 1
 
     return similar_count
+
+
+def remove_single_src_dir(p: Path):
+    """移除单独出现的src目录"""
+    exist_src = False
+    count = 0
+    for sub in p.iterdir():
+        count += 1
+        if sub.is_dir():
+            if sub.name == "src":
+                exist_src = True
+            remove_single_src_dir(sub)
+    if exist_src and count == 1:
+        import shutil
+        for sub in (p / "src").iterdir():
+            shutil.move(sub, p)
+        (p / "src").rmdir()
