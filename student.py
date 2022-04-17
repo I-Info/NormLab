@@ -13,8 +13,8 @@ class Student:
         return f"{self.num}-{self.name}"
 
 
-class StudentInfoDict:
-    """学生信息字典
+class StudentInfo:
+    """学生信息
     """
 
     def __init__(self, input_path: str):
@@ -26,7 +26,7 @@ class StudentInfoDict:
             for row in reader:
                 self.__data[row[0]] = row[2]
 
-    def __getitem__(self, item) -> str:
+    def __getitem__(self, item: str) -> str:
         """通过学号查询姓名简称，找不到则抛出异常
         """
         return self.__data[item]

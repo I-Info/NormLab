@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from student import StudentInfoDict
+from student import StudentInfo
 
 package_filename = "Lab03-JUnit for Unit Test.zip"
 base_dir = package_filename[:-4]
 lab_num = package_filename[3:4]
 student_list_file = "student-list.csv"
-student_infos = StudentInfoDict(student_list_file)
+student_infos = StudentInfo(student_list_file)
 suffix_blacklist = [".class", ".gitignore", ".DS_Store"]
 dirname_blacklist = [".git", ".idea", "target"]
 

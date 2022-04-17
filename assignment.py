@@ -5,13 +5,13 @@ import rarfile
 import difflib
 from pathlib import Path
 
-from student import StudentInfoDict, Student
+from student import StudentInfo, Student
 from fileUtil import extract_file, get_output_path, separate_path_filename
 from report import Report
 from source import Source, SourceAnalyzer
 
 
-class AssignmentCheck:
+class AssignmentChecker:
     def __init__(self):
         # 定义文件/目录忽略规则
         self.__ignore_dirs = [
@@ -39,7 +39,7 @@ class AssignmentCheck:
                 return False
         return True
 
-    def double_check(self, file_path: str) -> bool:
+    def check_both(self, file_path: str) -> bool:
         return self.check_file(file_path) and self.check_path(file_path)
 
 
@@ -47,13 +47,13 @@ class Assignment:
     """作业类
     """
 
-    def __init__(self, lab_num: str, student: Student, base_path: str, check: AssignmentCheck):
+    def __init__(self, lab_num: str, student: Student, base_path: str, check: AssignmentChecker):
         self.student: Student = student
         self.report: Report = Report()
         self.__name: str = f"{lab_num}-{student}"  # 学生作业的最终名称
         self.__base_path: str = base_path  # 根目录
         self.src_path: str = f"{self.__base_path}/{self.__name}"  # 源代码目录
-        self.__check: AssignmentCheck = check
+        self.__checker: AssignmentChecker = check
         self.source: Source = Source()
 
     def process_assignment(self, package: zipfile.ZipFile, file_info: zipfile.ZipInfo):
@@ -87,7 +87,7 @@ class Assignment:
         # 获取处理后的路径: 去除与压缩包重名目录
         output_path = path + "/" + get_output_path(filename, archive_name)
 
-        if file.is_dir() or not self.__check.double_check(output_path):  # 使用特定规则忽略文件夹和文件
+        if file.is_dir() or not self.__checker.check_both(output_path):  # 使用特定规则忽略文件夹和文件
             return
 
         pure_path, filename = separate_path_filename(output_path)  # 获取纯路径
@@ -135,7 +135,6 @@ class AssignmentManager:
 
     def __init__(self):
         self.__lab_name: str = ""
-        self.__reports: List[Report] = []
         self.__assignments: List[Assignment] = []
 
     def __get_lab_num(self) -> str:
@@ -143,10 +142,10 @@ class AssignmentManager:
         """
         return self.__lab_name[3:5]
 
-    def process_package(self, package_path: str, stu_info: StudentInfoDict):
+    def process_package(self, package_path: str, stu_info: StudentInfo):
         """导入并处理作业包
         """
-        check = AssignmentCheck()
+        check = AssignmentChecker()
         with zipfile.ZipFile(file=package_path, mode="r") as package:
             print("[Info]Processing package..")
             self.__lab_name = package.filename[:-4]  # 实验名称(根目录名)
@@ -243,7 +242,7 @@ class AssignmentManager:
                     max_count = len(it)
                 aspects = convert_flag(f)
                 rows += [[f"Group {count}", aspects] + [
-                    f"{self.__assignments[i].student.num}-{self.__assignments[i].student.name}" for i in it]]
+                    f"{self.__assignments[i].student}" for i in it]]
                 count += 1
             header = ["", "Similar Aspects"] + [f"Student {i}" for i in range(1, max_count + 1)]  # 创建表头
             writer.writerow(header)
