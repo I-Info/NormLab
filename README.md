@@ -14,3 +14,8 @@ python normlab.py <student list> <Lab package>
 ```
 - student list: 学生信息表
 - Lab package: 系统导出的实验包
+
+## 测试
+``` bash
+pytest test.py
+```
