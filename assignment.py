@@ -47,13 +47,13 @@ class Assignment:
     """作业类
     """
 
-    def __init__(self, lab_num: str, student: Student, base_path: str, check: AssignmentChecker):
+    def __init__(self, lab_num: str, student: Student, base_path: str, checker: AssignmentChecker):
         self.student: Student = student
         self.report: Report = Report()
         self.__name: str = f"{lab_num}-{student}"  # 学生作业的最终名称
         self.__base_path: str = base_path  # 根目录
         self.src_path: str = f"{self.__base_path}/{self.__name}"  # 源代码目录
-        self.__checker: AssignmentChecker = check
+        self.__checker: AssignmentChecker = checker
         self.source: Source = Source()
 
     def process_assignment(self, package: zipfile.ZipFile, file_info: zipfile.ZipInfo):
@@ -158,7 +158,7 @@ class AssignmentManager:
                 except KeyError:
                     # 学生信息不存在
                     print(
-                        f"[Warn] Student shortname with number {stu_num} is not found in student list, using full "
+                        f"[Warn]Student shortname with number {stu_num} is not found in student list, using full "
                         "name instead")
                     student = Student(stu_num, file.filename[14:-4])
 
