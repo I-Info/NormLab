@@ -33,3 +33,19 @@ def separate_path_filename(path: str) -> (str, str):
         current = index
         index = path.find("/", current + 1)
     return path[:current], path[current + 1:]
+
+
+def decode_file_name(name: str) -> str:
+    """重新编码解码zip中文件名，去除中文乱码
+    """
+    try:
+        e = name.encode("cp437")
+        e = e.decode("utf-8")
+        return e
+    except UnicodeDecodeError:
+        try:
+            e = name.encode("cp437")
+            e = e.decode("gbk")
+            return e
+        except UnicodeDecodeError:
+            return name
