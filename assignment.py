@@ -51,7 +51,7 @@ class Assignment:
     def __init__(self, lab_num: str, student: Student, base_path: str, checker: AssignmentChecker):
         self.student: Student = student
         self.report: Report = Report()
-        self.__name: str = f"{lab_num}-{student}"  # 学生作业的最终名称
+        self.__name: str = f"Lab{lab_num}-{student}"  # 学生作业的最终名称
         self.__base_path: str = base_path  # 根目录
         self.src_path: str = f"{self.__base_path}/{self.__name}"  # 源代码目录
         self.__checker: AssignmentChecker = checker
@@ -85,7 +85,7 @@ class Assignment:
         :param path: 指定输出路径(doc文件除外)
         """
 
-        archive_name = decode_file_name(archive.filename)[:-4]  # 压缩包名
+        # archive_name = decode_file_name(archive.filename)[:-4]  # 压缩包名
         filename = decode_file_name(file.filename)
         # 获取处理后的路径: 去除与压缩包重名目录
         output_path = f"{path}/{filename}"
@@ -235,7 +235,7 @@ class AssignmentManager:
             print("[Info]Export finished.")
 
     def __export_check_report(self, result: List[Tuple[int, List[int]]]):
-        with open(self.__lab_name + "/Similar-Report.csv", mode="w", newline='') as csvfile:
+        with open("./Similar-Works-Report.csv", mode="w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             max_count = 0  # 确定表头大小
             rows: List[str] = []
