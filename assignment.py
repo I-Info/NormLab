@@ -155,9 +155,8 @@ class AssignmentManager:
             # 遍历所有学生作业
             for file in package.filelist:
                 stu_num = file.filename[:13]  # 读取学生学号
-                student: Student
                 try:
-                    student = Student(stu_num, stu_info[stu_num])  # 查询学生姓名缩写
+                    student: Student = Student(stu_num, stu_info[stu_num])  # 查询学生姓名缩写
                 except KeyError:
                     # 学生信息不存在
                     print(
