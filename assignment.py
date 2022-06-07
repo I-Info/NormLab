@@ -57,29 +57,28 @@ class Assignment:
         self.__checker: AssignmentChecker = checker
         self.source: Source = Source()
 
-    def process_assignment(self, package: zipfile.ZipFile, file_info: zipfile.ZipInfo):
+    def process_assignment(self, assignment_zip: zipfile.PyZipFile, original_filename: str):
         """作业标准化处理入口
         """
-        # 从包中处理单个作业
-        with package.open(file_info, mode='r') as package_io:
-            with zipfile.PyZipFile(package_io, 'r') as assignment_zip:
-                original_filename = file_info.filename[:-4]  # 初始作业名称
-                # 遍历作业压缩包内的文件
-                for file in assignment_zip.filelist:
-                    filename = decode_file_name(file.filename)
 
-                    # 过滤去除多于的超星平台.doc文件
-                    if filename[-len(original_filename) - 4:-4] == original_filename:
-                        # print(filename)
-                        continue
+        # 遍历作业压缩包内的文件
+        for file in assignment_zip.filelist:
+            filename = decode_file_name(file.filename)
 
-                    self.__process_file(assignment_zip, file, self.src_path)
+            # 过滤去除多于的超星平台.doc文件
+            if filename[-len(original_filename) - 4:-4] == original_filename:
+                # print(filename)
+                continue
+
+            self.__process_file(assignment_zip, file, self.src_path)
+
+        # 后序检查
         path = Path(self.src_path)
         if path.exists():
             remove_single_src_dir(path)
             remove_single_begin_dir(path)
 
-    def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: str):
+    def __process_file(self, archive: Union[zipfile.PyZipFile, rarfile.RarFile], file: any, path: str):
         """处理压缩包中文件
         :param file: 压缩包文件句柄
         :param path: 指定输出路径(doc文件除外)
@@ -87,7 +86,7 @@ class Assignment:
 
         # archive_name = decode_file_name(archive.filename)[:-4]  # 压缩包名
         filename = decode_file_name(file.filename)
-        # 获取处理后的路径: 去除与压缩包重名目录
+
         output_path = f"{path}/{filename}"
 
         if file.is_dir() or not self.__checker.check_both(output_path):  # 使用特定规则忽略文件夹和文件
@@ -168,7 +167,11 @@ class AssignmentManager:
 
                 # 处理单个学生作业
                 assignment = Assignment(self.__get_lab_num(), student, self.__lab_name, check)
-                assignment.process_assignment(package, file)
+
+                with package.open(file, mode='r') as package_io:
+                    with zipfile.PyZipFile(package_io, 'r') as assignment_zip:
+                        assignment.process_assignment(assignment_zip, file.filename[:-4])
+
                 self.__assignments.append(assignment)
 
     def check(self):
