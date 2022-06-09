@@ -4,7 +4,8 @@ import rarfile
 from typing import Union
 
 
-def extract_file(archive: Union[rarfile.RarFile, zipfile.ZipFile], name: any, output_path: str, output_filename: str):
+def extract_file(archive: Union[rarfile.RarFile, zipfile.ZipFile], name: any, output_path: os.PathLike[str],
+                 output_filename: str):
     """从压缩包中提取文件，并自动创建目录
     """
     os.makedirs(output_path, exist_ok=True)  # 创建目录

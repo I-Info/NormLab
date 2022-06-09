@@ -3,7 +3,7 @@ import difflib
 import zipfile
 from pathlib import Path
 from typing import Union, List, Tuple
-
+from os import PathLike
 import rarfile
 
 from fileUtil import extract_file, separate_path_filename, decode_file_name
@@ -19,6 +19,7 @@ class AssignmentChecker:
             ".git",
             ".idea",
             "target",
+            "__MACOSX"
         ]
         self.__ignore_file_suffixes = [
             ".class",
@@ -48,19 +49,19 @@ class Assignment:
     """作业类
     """
 
-    def __init__(self, lab_num: str, student: Student, base_path: str, checker: AssignmentChecker):
+    def __init__(self, lab_num: str, student: Student, base_path: PathLike[str], checker: AssignmentChecker):
         self.student: Student = student
         self.report: Report = Report()
         self.__name: str = f"Lab{lab_num}-{student}"  # 学生作业的最终名称
-        self.__base_path: str = base_path  # 根目录
+        self.__base_path: PathLike[str] = base_path  # 根目录
         self.src_path: str = f"{self.__base_path}/{self.__name}"  # 源代码目录
         self.__checker: AssignmentChecker = checker
         self.source: Source = Source()
 
-    def process_assignment(self, assignment_zip: zipfile.ZipFile, original_filename: str):
+    def process_assignment(self, assignment_zip: zipfile.ZipFile):
         """作业标准化处理入口
         """
-
+        original_filename = assignment_zip.filename[:-4]
         # 遍历作业压缩包内的文件
         for file in assignment_zip.filelist:
             filename = decode_file_name(file.filename)
@@ -99,22 +100,21 @@ class Assignment:
             if self.report.cmp_update(filename, file.file_size):
                 extract_file(archive, file, self.__base_path, f"{self.__name}{filename[-5:]}")  # 将实验报告移动提取到根目录
 
+        # 处理zip文件
+        if filename[-4:] == ".zip":
+            with zipfile.ZipFile(archive.open(file, 'r'), 'r') as zip_file:
+                self.__process_zip(zip_file, pure_path)
+
+        # 处理rar文件
+        elif filename[-4:] == ".rar":
+            with rarfile.RarFile(archive.open(file, 'r'), 'r') as rar_file:
+                self.__process_rar(rar_file, pure_path)
+
+        # 其他文件解压输出到学生源代码代码目录
         else:
-            # 处理zip文件
-            if filename[-4:] == ".zip":
-                with zipfile.ZipFile(archive.open(file, 'r'), 'r') as zip_file:
-                    self.__process_zip(zip_file, pure_path)
-
-            # 处理rar文件
-            elif filename[-4:] == ".rar":
-                with rarfile.RarFile(archive.open(file, 'r'), 'r') as rar_file:
-                    self.__process_rar(rar_file, pure_path)
-
-            # 其他文件解压输出到学生源代码代码目录
-            else:
-                # 将文件路径信息添加到记录中，累加大小
-                self.source.append(pure_path[len(self.src_path):] + "/" + filename, file.file_size)
-                extract_file(archive, file, pure_path, filename)
+            # 将文件路径信息添加到记录中，累加大小
+            self.source.append(pure_path[len(self.src_path):] + "/" + filename, file.file_size)
+            extract_file(archive, file, pure_path, filename)
 
     def __process_zip(self, archive: zipfile.ZipFile, path: str):
         """处理zip文件
@@ -169,7 +169,7 @@ class AssignmentManager:
 
             with package.open(file, mode='r') as package_io:
                 with zipfile.ZipFile(package_io, 'r') as assignment_zip:
-                    assignment.process_assignment(assignment_zip, file.filename[:-4])
+                    assignment.process_assignment(assignment_zip)
 
             self.__assignments.append(assignment)
 
