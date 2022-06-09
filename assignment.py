@@ -102,8 +102,14 @@ class Assignment:
 
         if filename[-4:] == ".doc" or filename[-5:] == ".docx":
             # 将后缀为类.doc的文件作为实验报告，每个学生有且仅有一份有效的实验报告，因此仅保留大小最大的文档。
-            if self.report.cmp_update(filename, file.file_size):
+            if not self.report.cmp_update(filename, file.file_size):
                 extract_file(archive, file, self.__base_path, f"{self.__name}{filename[-5:]}")  # 将实验报告移动提取到根目录
+            else:
+                count = self.report.count
+                if count == 2:
+                    shutil.move(Path(self.__base_path) / f"{self.__name}{filename[-5:]}",
+                                Path(self.__base_path) / f"{self.__name}-1{filename[-5:]}")
+                extract_file(archive, file, self.__base_path, f"{self.__name}-{count}{filename[-5:]}")
 
             if not self.reserve_doc:
                 return
@@ -307,7 +313,6 @@ def remove_single_begin_dir(p: Path, key: str):
             return
     print(p, key, f)
     if f != "":
-        import shutil
         si = (p / f)
         st = (p / (f + "tmp"))
         shutil.move(si, st)
