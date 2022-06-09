@@ -1,6 +1,5 @@
 import csv
 import difflib
-import os.path
 import shutil
 import zipfile
 from pathlib import Path
@@ -302,10 +301,11 @@ def remove_single_begin_dir(p: Path, key: str):
     f = ""
     for sub in p.iterdir():
         # print(sub.name, key, difflib.SequenceMatcher(None, sub.name, key).ratio())
-        if sub.is_dir() and difflib.SequenceMatcher(None, sub.name, key).ratio() > 0.5:
+        if sub.is_dir() and difflib.SequenceMatcher(None, sub.name, key).ratio() > 0.4:
             f = sub.name
         else:
             return
+    print(p, key, f)
     if f != "":
         import shutil
         si = (p / f)
