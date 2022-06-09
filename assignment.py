@@ -49,7 +49,8 @@ class Assignment:
     """作业类
     """
 
-    def __init__(self, lab_num: str, student: Student, base_path: PathLike[str], checker: AssignmentChecker):
+    def __init__(self, lab_num: str, student: Student, base_path: PathLike[str], checker: AssignmentChecker,
+                 reserve_doc: bool = False):
         self.student: Student = student
         self.report: Report = Report()
         self.__name: str = f"Lab{lab_num}-{student}"  # 学生作业的最终名称
@@ -57,6 +58,7 @@ class Assignment:
         self.src_path: str = f"{self.__base_path}/{self.__name}"  # 源代码目录
         self.__checker: AssignmentChecker = checker
         self.source: Source = Source()
+        self.reserve_doc: bool = reserve_doc
 
     def process_assignment(self, assignment_zip: zipfile.ZipFile):
         """作业标准化处理入口
@@ -77,7 +79,6 @@ class Assignment:
         path = Path(self.src_path)
         if path.exists():
             remove_single_src_dir(path)
-            # print(path, original_filename)
             remove_single_begin_dir(path, separate_path_filename(original_filename)[1])
 
     def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: PathLike[str]):
@@ -86,7 +87,6 @@ class Assignment:
         :param path: 指定输出路径(doc文件除外)
         """
 
-        # archive_name = decode_file_name(archive.filename)[:-4]  # 压缩包名
         filename = decode_file_name(file.filename)
 
         output_path = f"{path}/{filename}"
@@ -103,8 +103,11 @@ class Assignment:
             if self.report.cmp_update(filename, file.file_size):
                 extract_file(archive, file, self.__base_path, f"{self.__name}{filename[-5:]}")  # 将实验报告移动提取到根目录
 
+            if not self.reserve_doc:
+                return
+
         # 处理zip文件
-        elif filename[-4:] == ".zip":
+        if filename[-4:] == ".zip":
             with zipfile.ZipFile(archive.open(file, 'r'), 'r') as zip_file:
                 self.__process_zip(zip_file, pure_path)
 
@@ -123,7 +126,7 @@ class Assignment:
         """处理zip文件
         """
         # 遍历zip中文件
-        output = get_archive_output_path(archive.filename[:-4])
+        output = get_archive_output_path(archive.filename)
         for file in archive.filelist:
             self.__process_file(archive, file, path / output)
         remove_single_begin_dir(path, output)
@@ -132,7 +135,7 @@ class Assignment:
         """处理rar文件
         """
         # 遍历rar中文件
-        output = get_archive_output_path(archive.filename[:-4])
+        output = get_archive_output_path(archive.filename)
         for file in archive.infolist():
             self.__process_file(archive, file, path / output)
         remove_single_begin_dir(path, output)

@@ -1,5 +1,8 @@
+import zipfile
 from pathlib import Path
 
+import assignment
+import student
 from student import StudentInfo
 
 package_filename = "Lab03-JUnit for Unit Test.zip"
@@ -56,6 +59,13 @@ class TestNormLab:
                 assert sub.name[:1] == lab_num
                 check_file_name(sub.name[3:])
                 check_dir(sub)
+
+    def test_single_inner(self):
+        path = Path("ZipOuter")
+        ass = assignment.Assignment("01", student.Student("02", "test"), path / "Output",
+                                    assignment.AssignmentChecker(), True)
+        with zipfile.ZipFile(path / "Lab01-中文.zip") as package:
+            ass.process_assignment(package)
 
 
 def check_file_name(f_name: str):
