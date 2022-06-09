@@ -1,4 +1,5 @@
 import sys
+import zipfile
 
 from assignment import AssignmentManager
 from student import StudentInfo
@@ -12,5 +13,6 @@ if __name__ == '__main__':
 
     info_dict = StudentInfo(student_list_path)
     manager = AssignmentManager()
-    manager.process_package(package_path, info_dict)
-    manager.check()
+    with zipfile.ZipFile(package_path, "r") as package:
+        manager.process_package(package, info_dict)
+        manager.check()

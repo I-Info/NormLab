@@ -57,7 +57,7 @@ class Assignment:
         self.__checker: AssignmentChecker = checker
         self.source: Source = Source()
 
-    def process_assignment(self, assignment_zip: zipfile.PyZipFile, original_filename: str):
+    def process_assignment(self, assignment_zip: zipfile.ZipFile, original_filename: str):
         """作业标准化处理入口
         """
 
@@ -78,7 +78,7 @@ class Assignment:
             remove_single_src_dir(path)
             remove_single_begin_dir(path)
 
-    def __process_file(self, archive: Union[zipfile.PyZipFile, rarfile.RarFile], file: any, path: str):
+    def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: str):
         """处理压缩包中文件
         :param file: 压缩包文件句柄
         :param path: 指定输出路径(doc文件除外)
@@ -102,7 +102,7 @@ class Assignment:
         else:
             # 处理zip文件
             if filename[-4:] == ".zip":
-                with zipfile.PyZipFile(archive.open(file, 'r'), 'r') as zip_file:
+                with zipfile.ZipFile(archive.open(file, 'r'), 'r') as zip_file:
                     self.__process_zip(zip_file, pure_path)
 
             # 处理rar文件
@@ -116,7 +116,7 @@ class Assignment:
                 self.source.append(pure_path[len(self.src_path):] + "/" + filename, file.file_size)
                 extract_file(archive, file, pure_path, filename)
 
-    def __process_zip(self, archive: zipfile.PyZipFile, path: str):
+    def __process_zip(self, archive: zipfile.ZipFile, path: str):
         """处理zip文件
         """
         # 遍历zip中文件
@@ -144,35 +144,34 @@ class AssignmentManager:
         """
         return self.__lab_name[3:5]
 
-    def process_package(self, package_path: str, stu_info: StudentInfo):
+    def process_package(self, package: zipfile.ZipFile, stu_info: StudentInfo):
         """导入并处理作业包
         """
         check = AssignmentChecker()
-        with zipfile.ZipFile(file=package_path, mode="r") as package:
-            print("[Info]Processing package..")
-            self.__lab_name = package.filename[:-4]  # 实验名称(根目录名)
-            # 遍历所有学生作业
-            for file in package.filelist:
-                stu_num = file.filename[:13]  # 读取学生学号
-                try:
-                    student: Student = Student(stu_num, stu_info[stu_num])  # 查询学生姓名缩写
-                except KeyError:
-                    # 学生信息不存在
-                    print(
-                        f"[Warn]Student shortname with number {stu_num} is not found in student list, using full "
-                        "name instead")
-                    student = Student(stu_num, file.filename[14:-4])
+        print("[Info]Processing package..")
+        self.__lab_name = package.filename[:-4]  # 实验名称(根目录名)
+        # 遍历所有学生作业
+        for file in package.filelist:
+            stu_num = file.filename[:13]  # 读取学生学号
+            try:
+                student: Student = Student(stu_num, stu_info[stu_num])  # 查询学生姓名缩写
+            except KeyError:
+                # 学生信息不存在
+                print(
+                    f"[Warn]Student shortname with number {stu_num} is not found in student list, using full "
+                    "name instead")
+                student = Student(stu_num, file.filename[14:-4])
 
-                print("[Info]Processing Assignment:", student)
+            print("[Info]Processing Assignment:", student)
 
-                # 处理单个学生作业
-                assignment = Assignment(self.__get_lab_num(), student, self.__lab_name, check)
+            # 处理单个学生作业
+            assignment = Assignment(self.__get_lab_num(), student, self.__lab_name, check)
 
-                with package.open(file, mode='r') as package_io:
-                    with zipfile.PyZipFile(package_io, 'r') as assignment_zip:
-                        assignment.process_assignment(assignment_zip, file.filename[:-4])
+            with package.open(file, mode='r') as package_io:
+                with zipfile.ZipFile(package_io, 'r') as assignment_zip:
+                    assignment.process_assignment(assignment_zip, file.filename[:-4])
 
-                self.__assignments.append(assignment)
+            self.__assignments.append(assignment)
 
     def check(self):
         """作业相似度检查
