@@ -77,7 +77,7 @@ class Assignment:
         path = Path(self.src_path)
         if path.exists():
             remove_single_src_dir(path)
-            print(path, original_filename)
+            # print(path, original_filename)
             remove_single_begin_dir(path, separate_path_filename(original_filename)[1])
 
     def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: PathLike[str]):
@@ -104,14 +104,14 @@ class Assignment:
                 extract_file(archive, file, self.__base_path, f"{self.__name}{filename[-5:]}")  # 将实验报告移动提取到根目录
 
         # 处理zip文件
-        if filename[-4:] == ".zip":
+        elif filename[-4:] == ".zip":
             with zipfile.ZipFile(archive.open(file, 'r'), 'r') as zip_file:
-                self.__process_zip(zip_file, pure_path / filename[:-4])
+                self.__process_zip(zip_file, pure_path)
 
         # 处理rar文件
         elif filename[-4:] == ".rar":
             with rarfile.RarFile(archive.open(file, 'r'), 'r') as rar_file:
-                self.__process_rar(rar_file, pure_path / filename[:-4])
+                self.__process_rar(rar_file, pure_path)
 
         # 其他文件解压输出到学生源代码代码目录
         else:
@@ -123,18 +123,19 @@ class Assignment:
         """处理zip文件
         """
         # 遍历zip中文件
+        output = get_archive_output_path(archive.filename[:-4])
         for file in archive.filelist:
-            self.__process_file(archive, file, path)
-        print(path, separate_path_filename(decode_file_name(archive.filename[:-4]))[1])
-        remove_single_begin_dir(path, separate_path_filename(decode_file_name(archive.filename[:-4]))[1])
+            self.__process_file(archive, file, path / output)
+        remove_single_begin_dir(path, output)
 
     def __process_rar(self, archive: rarfile.RarFile, path: Path):
         """处理rar文件
         """
         # 遍历rar中文件
+        output = get_archive_output_path(archive.filename[:-4])
         for file in archive.infolist():
-            self.__process_file(archive, file, path)
-        remove_single_begin_dir(path, separate_path_filename(decode_file_name(archive.filename[:-4]))[1])
+            self.__process_file(archive, file, path / output)
+        remove_single_begin_dir(path, output)
 
 
 class AssignmentManager:
@@ -292,21 +293,26 @@ def remove_single_src_dir(p: Path):
 
 def remove_single_begin_dir(p: Path, key: str):
     """嵌套去除开头与关键词匹配的单文件夹"""
-    flag = False
+    f = ""
     for sub in p.iterdir():
-        if sub.is_dir() and sub.name == key:
-            flag = True
+        # print(sub.name, key, difflib.SequenceMatcher(None, sub.name, key).ratio())
+        if sub.is_dir() and difflib.SequenceMatcher(None, sub.name, key).ratio() > 0.5:
+            f = sub.name
         else:
             return
-    if flag:
+    if f != "":
         import shutil
-        si = (p / key)
-        st = (p / (key + "tmp"))
+        si = (p / f)
+        st = (p / (f + "tmp"))
         shutil.move(si, st)
         for sub in st.iterdir():
             shutil.move(sub, p)
         st.rmdir()
         remove_single_begin_dir(p, key)
+
+
+def get_archive_output_path(filename: str):
+    return separate_path_filename(decode_file_name(filename[:-4]))[1]
 
 
 def remove_duplicate_dir(p: Path):
