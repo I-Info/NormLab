@@ -1,5 +1,7 @@
 import csv
 import difflib
+import os.path
+import shutil
 import zipfile
 from pathlib import Path
 from typing import Union, List, Tuple
@@ -80,6 +82,7 @@ class Assignment:
         if path.exists():
             remove_single_src_dir(path)
             remove_single_begin_dir(path, separate_path_filename(original_filename)[1])
+            remove_duplicate_dir(path)
 
     def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: PathLike[str]):
         """处理压缩包中文件
@@ -129,7 +132,7 @@ class Assignment:
         output = get_archive_output_path(archive.filename)
         for file in archive.filelist:
             self.__process_file(archive, file, path / output)
-        remove_single_begin_dir(path, output)
+        remove_single_begin_dir(path / output, output)
 
     def __process_rar(self, archive: rarfile.RarFile, path: Path):
         """处理rar文件
@@ -138,7 +141,7 @@ class Assignment:
         output = get_archive_output_path(archive.filename)
         for file in archive.infolist():
             self.__process_file(archive, file, path / output)
-        remove_single_begin_dir(path, output)
+        remove_single_begin_dir(path / output, output)
 
 
 class AssignmentManager:
@@ -320,4 +323,18 @@ def get_archive_output_path(filename: str):
 
 def remove_duplicate_dir(p: Path):
     """去除连续相同的单文件夹"""
-    pass
+
+    count = 0
+    sub_dir: Union[Path, None] = None
+    for sub in p.iterdir():
+        if sub.is_dir():
+            sub_dir = sub
+            remove_duplicate_dir(sub)
+        count += 1
+
+    if count == 1 and sub_dir is not None and sub_dir.name == p.name:
+        st = (p / (sub_dir.name + "tmp"))
+        shutil.move(sub_dir, st)
+        for sub in st.iterdir():
+            shutil.move(sub, p)
+        st.rmdir()
