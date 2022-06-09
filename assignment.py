@@ -71,15 +71,16 @@ class Assignment:
                 # print(filename)
                 continue
 
-            self.__process_file(assignment_zip, file, self.src_path)
+            self.__process_file(assignment_zip, file, Path(self.src_path))
 
         # 后序检查
         path = Path(self.src_path)
         if path.exists():
             remove_single_src_dir(path)
-            remove_single_begin_dir(path)
+            print(path, original_filename)
+            remove_single_begin_dir(path, separate_path_filename(original_filename)[1])
 
-    def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: str):
+    def __process_file(self, archive: Union[zipfile.ZipFile, rarfile.RarFile], file: any, path: PathLike[str]):
         """处理压缩包中文件
         :param file: 压缩包文件句柄
         :param path: 指定输出路径(doc文件除外)
@@ -95,6 +96,8 @@ class Assignment:
 
         pure_path, filename = separate_path_filename(output_path)  # 获取纯路径
 
+        pure_path = Path(pure_path)
+
         if filename[-4:] == ".doc" or filename[-5:] == ".docx":
             # 将后缀为类.doc的文件作为实验报告，每个学生有且仅有一份有效的实验报告，因此仅保留大小最大的文档。
             if self.report.cmp_update(filename, file.file_size):
@@ -103,32 +106,35 @@ class Assignment:
         # 处理zip文件
         if filename[-4:] == ".zip":
             with zipfile.ZipFile(archive.open(file, 'r'), 'r') as zip_file:
-                self.__process_zip(zip_file, pure_path)
+                self.__process_zip(zip_file, pure_path / filename[:-4])
 
         # 处理rar文件
         elif filename[-4:] == ".rar":
             with rarfile.RarFile(archive.open(file, 'r'), 'r') as rar_file:
-                self.__process_rar(rar_file, pure_path)
+                self.__process_rar(rar_file, pure_path / filename[:-4])
 
         # 其他文件解压输出到学生源代码代码目录
         else:
             # 将文件路径信息添加到记录中，累加大小
-            self.source.append(pure_path[len(self.src_path):] + "/" + filename, file.file_size)
+            self.source.append(output_path[len(self.src_path):], file.file_size)
             extract_file(archive, file, pure_path, filename)
 
-    def __process_zip(self, archive: zipfile.ZipFile, path: str):
+    def __process_zip(self, archive: zipfile.ZipFile, path: Path):
         """处理zip文件
         """
         # 遍历zip中文件
         for file in archive.filelist:
             self.__process_file(archive, file, path)
+        print(path, separate_path_filename(decode_file_name(archive.filename[:-4]))[1])
+        remove_single_begin_dir(path, separate_path_filename(decode_file_name(archive.filename[:-4]))[1])
 
-    def __process_rar(self, archive: rarfile.RarFile, path: str):
+    def __process_rar(self, archive: rarfile.RarFile, path: Path):
         """处理rar文件
         """
         # 遍历rar中文件
         for file in archive.infolist():
             self.__process_file(archive, file, path)
+        remove_single_begin_dir(path, separate_path_filename(decode_file_name(archive.filename[:-4]))[1])
 
 
 class AssignmentManager:
@@ -284,18 +290,25 @@ def remove_single_src_dir(p: Path):
         src.rmdir()
 
 
-def remove_single_begin_dir(p: Path):
-    """去除开头的单文件夹"""
-    dir_name = ""
+def remove_single_begin_dir(p: Path, key: str):
+    """嵌套去除开头与关键词匹配的单文件夹"""
+    flag = False
     for sub in p.iterdir():
-        if sub.is_dir() and dir_name == "":
-            dir_name = sub.name
+        if sub.is_dir() and sub.name == key:
+            flag = True
         else:
             return
-    if dir_name != "":
+    if flag:
         import shutil
-        si = (p / dir_name)
-        for sub in si.iterdir():
-            shutil.move(sub, p, shutil.copy)
-        si.rmdir()
-        remove_single_begin_dir(p)
+        si = (p / key)
+        st = (p / (key + "tmp"))
+        shutil.move(si, st)
+        for sub in st.iterdir():
+            shutil.move(sub, p)
+        st.rmdir()
+        remove_single_begin_dir(p, key)
+
+
+def remove_duplicate_dir(p: Path):
+    """去除连续相同的单文件夹"""
+    pass
