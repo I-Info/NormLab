@@ -7,3 +7,5 @@ student-list.csv
 .DS_Store
 /ZipInner/
 /ZipOuter/
+test-case-*
+.pytest_cache

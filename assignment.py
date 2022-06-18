@@ -165,7 +165,7 @@ class AssignmentManager:
         """
         return self.__lab_name[3:5]
 
-    def process_package(self, package: zipfile.ZipFile, stu_info: StudentInfo):
+    def process_package(self, package: zipfile.ZipFile, stu_info: StudentInfo, output_path: PathLike[str] = "."):
         """导入并处理作业包
         """
         check = AssignmentChecker()
@@ -186,7 +186,7 @@ class AssignmentManager:
             print("[Info]Processing Assignment:", student)
 
             # 处理单个学生作业
-            assignment = Assignment(self.__get_lab_num(), student, self.__lab_name, check)
+            assignment = Assignment(self.__get_lab_num(), student, Path(f"{output_path}/{self.__lab_name}"), check)
 
             with package.open(file, mode='r') as package_io:
                 with zipfile.ZipFile(package_io, 'r') as assignment_zip:
@@ -314,7 +314,7 @@ def remove_single_begin_dir(p: Path, key: str):
             f = sub.name
         else:
             return
-    print(p, key, f)
+    # print(p, key, f)
     if f != "":
         si = (p / f)
         st = (p / (f + "tmp"))
