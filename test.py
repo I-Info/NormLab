@@ -35,10 +35,28 @@ class TestNormLab:
         expect_path = path / "ExpectedOutput"
         assert check_output_expected(expect_path, output_path)
 
-    # def test_case_02(self):
-    #     path = Path("test-case-02")
-    #     info_dict = StudentInfo(student_list_path)
-    #     manager = AssignmentManager()
+    def test_case_02(self):
+        path = Path("test-case-02")
+        info_dict = StudentInfo("student-list.csv")
+        manager = assignment.AssignmentManager("Lab03-JUnit for Unit Test")
+        output_path = path / "Output"
+        shutil.rmtree(output_path)
+        with zipfile.ZipFile(path / "Lab03-JUnit for Unit Test.zip", "r") as package:
+            manager.process_package(package, info_dict, output_path)
+            manager.check(output_path)
+        expect_path = path / "Output-Expected"
+        assert check_output_expected(expect_path, output_path)
+
+    def test_case_03(self):
+        path = Path("test-case-03")
+        info_dict = StudentInfo("student-list.csv")
+        manager = assignment.AssignmentManager("Lab03-JUnit for Unit Test")
+        output_path = path / "Output"
+        shutil.rmtree(output_path)
+        with zipfile.ZipFile(path / "Lab03-JUnit for Unit Test.zip", "r") as package:
+            manager.process_package(package, info_dict, output_path)
+        expect_path = path / "Output-Expected"
+        assert check_output_expected(expect_path, output_path)
 
 
 # Remove unnecessary docs

@@ -156,8 +156,8 @@ class AssignmentManager:
     """作业包处理类
     """
 
-    def __init__(self):
-        self.__lab_name: str = ""
+    def __init__(self, lab_name):
+        self.__lab_name: str = lab_name
         self.__assignments: List[Assignment] = []
 
     def __get_lab_num(self) -> str:
@@ -170,7 +170,6 @@ class AssignmentManager:
         """
         check = AssignmentChecker()
         print("[Info]Processing package..")
-        self.__lab_name = package.filename[:-4]  # 实验名称(根目录名)
         # 遍历所有学生作业
         for file in package.filelist:
             stu_num = file.filename[:13]  # 读取学生学号
@@ -179,9 +178,9 @@ class AssignmentManager:
             except KeyError:
                 # 学生信息不存在
                 print(
-                    f"[Warn]Student shortname with number {stu_num} is not found in student list, using full "
-                    "name instead")
-                student = Student(stu_num, file.filename[14:-4])
+                    f"[Warn]Student shortname with number {stu_num} is not found in student list, ignored")
+                continue
+                # student = Student(stu_num, file.filename[14:-4])
 
             print("[Info]Processing Assignment:", student)
 
@@ -257,7 +256,7 @@ class AssignmentManager:
             print("[Info]Export finished.")
 
     def __export_check_report(self, result: List[Tuple[int, List[int]]], output_path: PathLike[str]):
-        with open("./Similar-Works-Report.csv", mode="w", newline='') as csvfile:
+        with open(Path(output_path) / "Similar Works Report.csv", mode="w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             max_count = 0  # 确定表头大小
             rows: List[str] = []
