@@ -1,3 +1,5 @@
+import os
+import shutil
 import zipfile
 from pathlib import Path
 
@@ -5,92 +7,57 @@ import assignment
 import student
 from student import StudentInfo
 
-package_filename = "Lab03-JUnit for Unit Test.zip"
-base_dir = package_filename[:-4]
-lab_num = package_filename[3:4]
-student_list_file = "student-list.csv"
-student_infos = StudentInfo(student_list_file)
-suffix_blacklist = [".class", ".gitignore", ".DS_Store"]
-dirname_blacklist = [".git", ".idea", "target"]
-
 
 class TestNormLab:
     """测试类"""
 
-    def test_base_dir(self):
-        """测试根目录是否存在且符合规范"""
-        assert Path(base_dir).exists()
-
-    def test_report_csv(self):
-        """测试生成的相似度报告"""
-        path = Path(base_dir) / "Similar-Report.csv"
-        assert path.exists()
-        import csv
-        with open(path, "r") as csvfile:
-            reader = csv.reader(csvfile)
-            header = reader.__next__()
-            assert header[1] == "Similar Aspects"
-            assert header[2] == "Student 1"
-            count = 1
-            for it in reader:
-                assert it[0] == f"Group {count}"
-                count += 1
-                assert "similar" in it[1]
-                check_file_name(it[2])
-
-    def test_lab_reports(self):
-        """测试规范化后的实验报告文件名"""
-        path = Path(base_dir)
-        for file in path.iterdir():
-            if file.is_file():
-                if file.name[-5] == ".docx":
-                    assert file.name[:1] == lab_num
-                    check_file_name(file.name[3:-7])
-                elif file.name[-4] == ".doc":
-                    assert file.name[:1] == lab_num
-                    check_file_name(file.name[3:-6])
-
-    def test_src_dirs(self):
-        """测试源码目录"""
-        path = Path(base_dir)
-        for sub in path.iterdir():
-            if sub.is_dir():
-                # 测试目录名
-                assert sub.name[:1] == lab_num
-                check_file_name(sub.name[3:])
-                check_dir(sub)
-
-    def test_single_inner(self):
-        path = Path("ZipOuter")
-        ass = assignment.Assignment("01", student.Student("02", "test"), path / "Output",
+    def test_case_01_inner(self):
+        path = Path("test-case-01")
+        output_path = path / "ZipInner/Output"
+        shutil.rmtree(output_path)
+        ass = assignment.Assignment("01", student.Student("", "中文"), output_path,
                                     assignment.AssignmentChecker(), True)
-        with zipfile.ZipFile(path / "Lab01-中文.zip") as package:
+        with zipfile.ZipFile(path / "ZipInner/Lab01-中文.zip") as package:
             ass.process_assignment(package)
+        rm_docs(output_path)
+        expect_path = path / "ExpectedOutput"
+        assert check_output_expected(expect_path, output_path)
+
+    def test_case_01_outer(self):
+        path = Path("test-case-01")
+        output_path = path / "ZipOuter/Output"
+        shutil.rmtree(output_path)
+        ass = assignment.Assignment("01", student.Student("", "中文"), output_path,
+                                    assignment.AssignmentChecker(), True)
+        with zipfile.ZipFile(path / "ZipOuter/Lab01-中文.zip") as package:
+            ass.process_assignment(package)
+        rm_docs(output_path)
+        expect_path = path / "ExpectedOutput"
+        assert check_output_expected(expect_path, output_path)
+
+    # def test_case_02(self):
+    #     path = Path("test-case-02")
+    #     info_dict = StudentInfo(student_list_path)
+    #     manager = AssignmentManager()
 
 
-def check_file_name(f_name: str):
-    """检查命名规范"""
-    part = f_name.split("-")
-    assert len(part) == 2
-    assert student_infos[part[0]] == part[1]
+# Remove unnecessary docs
+def rm_docs(path: Path):
+    for sub in path.iterdir():
+        if sub.is_file() and sub.suffix in [".doc", ".docx"]:
+            sub.unlink()
 
 
-def check_dir(p: Path):
-    """检查上传文件处理情况"""
-    exist_src = False
-    count = 0
-    for sub in p.iterdir():
-        count += 1
-        if sub.is_file():
-            for ban in suffix_blacklist:
-                assert sub.name[-len(ban):] != ban
-        elif sub.is_dir():
-            if sub.name == "src":
-                exist_src = True
-            check_dir(sub)
-    if exist_src:
-        # 测试是否存在单src的目录
-        assert count != 1
-    else:
-        # 测试是否存在空目录
-        assert count != 0
+def check_output_expected(exp: Path, out: Path) -> bool:
+    exp_files = []
+    for root, dirs, files in os.walk(exp):
+        for name in files:
+            exp_files.append(os.path.join(root, name)[len(str(exp)):])
+
+    for root, dirs, files in os.walk(out):
+        for name in files:
+            out_file = os.path.join(root, name)[len(str(out)):]
+            if out_file not in exp_files:
+                return False
+
+    return True

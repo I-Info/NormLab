@@ -194,7 +194,7 @@ class AssignmentManager:
 
             self.__assignments.append(assignment)
 
-    def check(self):
+    def check(self, output_path: PathLike[str] = "."):
         """作业相似度检查
         """
         print("[Info]Assignments check..")
@@ -253,10 +253,10 @@ class AssignmentManager:
         # 导出相似度分析报告
         if len(similar_result) > 0:
             print("[Info]Exporting similar report..")
-            self.__export_check_report(similar_result)
+            self.__export_check_report(similar_result, output_path)
             print("[Info]Export finished.")
 
-    def __export_check_report(self, result: List[Tuple[int, List[int]]]):
+    def __export_check_report(self, result: List[Tuple[int, List[int]]], output_path: PathLike[str]):
         with open("./Similar-Works-Report.csv", mode="w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             max_count = 0  # 确定表头大小

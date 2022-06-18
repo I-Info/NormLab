@@ -10,7 +10,10 @@ class Student:
         self.name = name
 
     def __str__(self) -> str:
-        return f"{self.num}-{self.name}"
+        if self.num != "":
+            return f"{self.num}-{self.name}"
+        else:
+            return self.name
 
 
 class StudentInfo:
